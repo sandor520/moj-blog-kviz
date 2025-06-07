@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест: Трансцендентални Напредак (са оцењивањем)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .quiz-container {
+            min-height: 550px; 
+        }
+        .answer-btn {
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .answer-btn:hover:not(.selected):not(.disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            background-color: #f0f4f8;
+        }
+        .selected {
+            background-color: #C7D2FE !important; /* Indigo-200 */
+            color: #3730A3 !important; /* Indigo-800 */
+            border-color: #A5B4FC !important; /* Indigo-300 */
+        }
+        .correct-highlight {
+            background-color: #D1FAE5 !important; 
+            color: #065F46 !important; 
+            border-color: #6EE7B7 !important;
+        }
+        .incorrect-highlight {
+            background-color: #FEE2E2 !important; 
+            color: #991B1B !important; 
+            border-color: #FCA5A5 !important; 
+        }
+        .results-question-item {
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+        .results-question-item:last-child {
+            border-bottom: none;
+        }
+        .feedback-section h4 {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #4338CA; /* Indigo-700 */
+            margin-top: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+        .feedback-section ul {
+            list-style-type: disc;
+            margin-left: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .feedback-section p {
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-b from-sky-200 to-green-200 flex items-center justify-center min-h-screen p-4 py-8">
+
+    <div id="quizContainer" class="quiz-container bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-3xl">
+        
+        <div id="startScreen" class="text-center">
+            <h1 class="text-3xl font-bold text-gray-800 mb-4">Тест: Трансцендентални Напредак (са оцењивањем)</h1>
+            <div class="mb-6 space-y-4">
+                <div>
+                    <label for="participantName" class="block text-sm font-medium text-gray-700">Име и презиме полазника:</label>
+                    <input type="text" id="participantName" name="participantName" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+                <div>
+                    <label for="testDate" class="block text-sm font-medium text-gray-700">Датум:</label>
+                    <input type="date" id="testDate" name="testDate" value="${new Date().toISOString().slice(0,10)}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+            </div>
+            <p class="text-gray-700 mb-6">Упутство: Изаберите тачан одговор.</p>
+            <p class="text-sm text-gray-600 mb-6">Максималан број поена је 91. За пролаз (оцена 2) потребно је 52 поена.</p>
+            <button id="startTestBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+                Започни тест
+            </button>
+        </div>
+
+        <div id="quizArea" style="display: none;">
+            <div id="questionHeaderArea" class="mb-4">
+                <p id="questionProgressArea" class="text-center text-gray-600">
+                    Питање <span id="currentQuestionNumber" class="font-bold text-indigo-600">0</span> од <span id="totalTestQuestions" class="font-bold text-indigo-600">0</span>
+                     (<span id="currentQuestionPoints" class="font-bold">0</span> поена)
+                </p>
+            </div>
+
+            <div id="questionArea" class="mb-6">
+                <h2 id="questionText" class="text-xl sm:text-2xl font-semibold text-gray-800 text-center mb-6 min-h-[60px]"></h2>
+                <div id="answerOptions" class="space-y-3"></div>
+            </div>
+
+            <div id="navigationArea" class="text-center mt-8">
+                <button id="nextQuestionBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 sm:px-8 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+                    Следеће питање
+                </button>
+                <button id="finishTestBtn" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 sm:px-8 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105" style="display: none;">
+                    Заврши тест и погледај резултате
+                </button>
+            </div>
+        </div>
+
+        <div id="resultsScreen" class=" py-2" style="display: none;">
+            <h2 id="resultsTitle" class="text-3xl font-bold text-gray-800 mb-6 text-center">Резултати теста</h2>
+            
+            <div id="userAnswersArea" class="mb-6"></div>
+            
+            <div id="finalGradeArea" class="text-center p-6 bg-indigo-50 rounded-lg">
+                <h3 class="text-2xl font-bold text-indigo-700 mb-2">
+                    Ваш укупан скор: <span id="finalScore" class="text-indigo-600">0</span> / <span id="maxPossibleScore">91</span>
+                </h3>
+                <p id="gradeDisplay" class="text-xl text-gray-800 mb-1 font-semibold"></p>
+                <p id="gradeDescription" class="text-md text-gray-700 mb-4"></p>
+                <div id="supplementaryGuidance" class="text-left text-sm text-gray-600 p-4 border border-indigo-200 rounded-md bg-white feedback-section" style="display:none;">
+                    </div>
+            </div>
+
+            <div class="text-center mt-8">
+                <button id="restartTestBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+                    Почни поново
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const testQuestions = [
+            { 
+                id: 1, type: 'mcq', 
+                question: "Шта је, према чланку, \"Теоријско знање\"?", 
+                options: {
+                    "а": "Семе информације стечено учењем и читањем, које чека на плодно тло искуства да проклија.", 
+                    "б": "Знање које је већ постало део нашег бића и примењује се аутоматски.", 
+                    "в": "Способност интуитивног деловања без претходног учења или свесног напора.",
+                    "г": "Искључиво практично искуство стечено радом, без теоријске основе."
+                }, 
+                correctAnswer: "а", points: 5 
+            },
+            { 
+                id: 2, type: 'mcq', 
+                question: "Објасните појам \"Интегрисано знање\" како је представљен у тексту.", 
+                options: {
+                    "а": "Скуп чињеница, формула и дефиниција научених напамет, првенствено за полагање испита.", 
+                    "б": "Знање које је кроз примену и рефлексију постало део нашег бића, обликујући наше мисли, осећања и дела.", 
+                    "в": "Информације које су теоријски усвојене али још увек нису нашле примену у стварним животним ситуацијама.",
+                    "г": "Способност да се теорија прецизно и детаљно објасни другима, чак и без личног искуства."
+                }, 
+                correctAnswer: "б", points: 5 
+            },
+            { 
+                id: 3, type: 'mcq', 
+                question: "Која је кључна разлика између \"теоријског знања\" и \"интегрисаног знања\" како је наведено у чланку?", 
+                options: {
+                    "а": "Теоријско знање је увек практичније и лакше применљиво, док је интегрисано знање апстрактно и тешко за коришћење.", 
+                    "б": "Интегрисано знање се стиче искључиво пасивним читањем и слушањем, док теоријско знање захтева активну праксу.", 
+                    "в": "Теоријско знање се стиче учењем и може бити терет ако није примењено, док је интегрисано знање \"оживљено\" кроз примену, вежбу и искуство, постајући део унутрашњег бића.",
+                    "г": "Нема суштинске разлике; оба термина описују идентичан процес стицања и примене информација."
+                }, 
+                correctAnswer: "в", points: 10 
+            },
+            { 
+                id: 4, type: 'mcq', 
+                question: "Коју илузију представља бајка \"Царево ново одело\" у контексту знања, према чланку?", 
+                options: {
+                    "а": "Илузију да је интегрисано знање нешто што се може лако и брзо стећи без труда.", 
+                    "б": "Илузију да је цар увек у праву и да његово знање надмашује знање обичних људи.", 
+                    "в": "Илузију да је за успех у животу довољно само поседовати велико теоријско знање.",
+                    "г": "Илузију теоријског знања без примене, где мислимо да смо \"одевени\" знањем, али смо заправо \"голи\" када треба деловати."
+                }, 
+                correctAnswer: "г", points: 5 
+            },
+            { 
+                id: 5, type: 'mcq', 
+                question: "Наведите три кључне карактеристике \"одела интеграције\" (интегрисаног знања) како су описане у чланку.", 
+                options: {
+                    "а": "Да је јединствено и аутентично (сашивено само за ВАС); да штити од незнања и погрешних процена (ваш ШТИТ); и да даје моћ деловања.", 
+                    "б": "Да је увек универзално и исто за све појединце; да је видљиво само ономе ко га носи; да захтева константно учење нових теорија без примене.", 
+                    "в": "Да се лако може пренети на друге особе без њиховог труда; да зрачи несигурношћу и сумњом; да служи искључиво за теоријска разматрања.",
+                    "г": "Да захтева само читање и пасивно усвајање; да не пружа никакву заштиту од животних изазова; да ограничава способност деловања."
+                }, 
+                correctAnswer: "а", points: 6 
+            },
+            { 
+                id: 6, type: 'mcq', 
+                question: "Која три принципа се у чланку наводе као кључна за \"кројење сопственог одела\" интегрисаног знања?", 
+                options: {
+                    "а": "Беспрекорна искреност према себи; поштовање принципа \"У себи и за себе\"; свест да нема пречице до интегрисаног знања (захтева предани рад).", 
+                    "б": "Тражење туђег одобрења и мишљења као примарног критеријума; игнорисање сопствених \"мера\" и потреба; коришћење пречица и површних метода.", 
+                    "в": "Искреност према другима али не нужно и према себи; ослањање на спољашње стандарде и очекивања; брзо усвајање знања без дубљег рада и интеграције.",
+                    "г": "Поштовање принципа \"искључиво за друге\"; активно тражење лакшег пута и избегавање напора; скривање својих правих \"мера\" и недостатака."
+                }, 
+                correctAnswer: "а", points: 6 
+            },
+            { 
+                id: 7, type: 'mcq', 
+                question: "Која је главна порука Еуклидове изјаве краљу Птолемеју: \"Нема краљевског пута за геометрију\", у контексту стицања интегрисаног знања?", 
+                options: {
+                    "а": "Геометрија и дубоко знање су резервисани искључиво за краљеве, племство и одабране појединце.", 
+                    "б": "Право знање и мудрост се стичу само кроз лични рад, истрајност и дубоку преданост процесу; не постоје пречице или лаки путеви.", 
+                    "в": "Постоје тајни, лакши путеви до знања који су доступни само онима са посебним привилегијама или везама.",
+                    "г": "Теоријско знање, попут геометрије, знатно је важније и вредније од практичног рада и искуства."
+                }, 
+                correctAnswer: "б", points: 5 
+            },
+            { 
+                id: 8, type: 'mcq', 
+                question: "Дефинишите \"Трансцендентални напредак\" према датом чланку.", 
+                options: {
+                    "а": "Статично стање савршенства које се постиже након завршетка формалног образовања и више се не мења.", 
+                    "б": "Процес искључивог гомилања теоријског знања и информација, без обзира на њихову практичну примену или интеграцију.", 
+                    "в": "Потпуно одбацивање свог претходно стеченог знања и искуства како би се направило места за потпуно нове концепте.",
+                    "г": "Динамични процес континуираног раста који се темељи на дубокој интеграцији знања, омогућавајући лакше учење, ослобађање ума и ширење личног потенцијала."
+                }, 
+                correctAnswer: "г", points: 10 
+            },
+            { 
+                id: 9, type: 'mcq', 
+                question: "Како, према чланку, дубоко интегрисано знање доприноси \"ослобађању ума\"?", 
+                options: {
+                    "а": "Када знање и вештине постану несвесни и природни (аутоматичност), мозак се ослобађа ресурса који су били везани за свесни напор, омогућавајући више простора за радозналост, креативност и дубоку присутност.", 
+                    "б": "Тако што ограничава ум на већ познате концепте и спречава даље учење, чиме се постиже осећај сигурности у познатом.", 
+                    "в": "Тако што чини ум потпуно пасивним и неспособним за критичко размишљање, препуштајући све одлуке интуицији.",
+                    "г": "Тако што захтева константан и интензиван свесни напор да би се интегрисано знање одржало активним и спречило његово губљење."
+                }, 
+                correctAnswer: "а", points: 10 
+            },
+            { 
+                id: 10, type: 'mcq', 
+                question: "Шта је \"Саморефлексија\" и зашто је важна у процесу интеграције знања, према чланку?", 
+                options: {
+                    "а": "Критиковање туђих поступака и искустава како би се из њих извукле поуке за сопствени развој.", 
+                    "б": "Пасивно присећање прошлих догађаја без дубље анализе или покушаја да се из њих нешто научи.", 
+                    "в": "Свесни чин промишљања о сопственим искуствима, мислима и емоцијама, неопходан за извлачење лекција и дубљу интеграцију новог разумевања у ткиво бића.",
+                    "г": "Процес селективног заборављања непријатних искустава и емоција ради очувања менталног мира и позитивне слике о себи."
+                }, 
+                correctAnswer: "в", points: 8 
+            },
+            { 
+                id: 11, type: 'mcq', 
+                question: "Наведите најмање четири од седам стратегија за \"алхемију раста\" које чланак предлаже за култивисање Трансценденталног напретка.", 
+                options: {
+                    "а": "Уроните у реку искуства; Постаните унутрашњи картограф – рефлектујте своје путовање; Усудите се да срушите и поново изградите – преиспитујте своје перспективе; Негујте врт свог раста – тражите и стварајте подстицајна окружења.", 
+                    "б": "Избегавајте нова искуства да бисте спречили грешке; Игноришите своје емоције као небитне; Чврсто се држите старих уверења без преиспитивања; Тражите искључиво критичка и осуђујућа окружења.", 
+                    "в": "Фокусирајте се само на теоријско учење без практичне примене; Делите са другима само своје успехе, а не и грешке; Избегавајте саморефлексију као губљење времена; Вежбајте нове вештине само површно и ретко.",
+                    "г": "Ослањајте се првенствено на туђа искуства и савете; Потискујте своје емоције да бисте остали рационални; Никада не преиспитујте оно што сте једном научили; Избегавајте практичну вежбу јер је теорија довољна."
+                }, 
+                correctAnswer: "а", points: 8 
+            },
+            { 
+                id: 12, type: 'mcq', 
+                question: "Шта представља \"Когнитивна дисонанца\" у контексту чланка и зашто може бити кључна за раст?", 
+                options: {
+                    "а": "Стање потпуног и безусловног слагања са свим новим информацијама и идејама на које наиђемо.", 
+                    "б": "Унутрашња нелагодност која сигнализира суочавање са новим увидима који изазивају постојећа уверења, позивајући на преиспитивање и раст.", 
+                    "в": "Осећај велике пријатности и задовољства када се потврде наша стара и добро утемељена уверења.",
+                    "г": "Способност да се истовремено држе два потпуно супротна уверења без икакве унутрашње нелагодности или потребе за променом."
+                }, 
+                correctAnswer: "б", points: 8 
+            },
+            { 
+                id: 13, type: 'mcq', 
+                question: "Шта је \"Проток\" (Флоу) како је описан у чланку?", 
+                options: {
+                    "а": "Стање хроничне досаде и потпуне незаинтересованости за активност којом се бавимо.", 
+                    "б": "Осећај велике напетости, анксиозности и стреса приликом обављања изузетно тешког и захтевног задатка.", 
+                    "в": "Површно и расејано обављање више различитих задатака истовремено, без дубљег удубљивања у било који од њих.",
+                    "г": "Чаробно стање када смо потпуно уроњени у активност, сједињени са задатком, губећи осећај за време и себе, где деловање проистиче из интегрисаних способности."
+                }, 
+                correctAnswer: "г", points: 5 
+            }
+        ];
+        testQuestions.forEach(q => {
+            q.userAnswer = null;
+            q.score = 0;
+        });
+
+        let currentQuestionIndex = 0;
+        
+        const startScreenEl = document.getElementById('startScreen');
+        const quizAreaEl = document.getElementById('quizArea');
+        const questionTextEl = document.getElementById('questionText');
+        const answerOptionsEl = document.getElementById('answerOptions');
+        const nextQuestionBtn = document.getElementById('nextQuestionBtn');
+        const finishTestBtn = document.getElementById('finishTestBtn');
+        const resultsScreenEl = document.getElementById('resultsScreen');
+        const userAnswersAreaEl = document.getElementById('userAnswersArea');
+        
+        const finalGradeAreaEl = document.getElementById('finalGradeArea');
+        const finalScoreEl = document.getElementById('finalScore');
+        const maxPossibleScoreEl = document.getElementById('maxPossibleScore');
+        const gradeDisplayEl = document.getElementById('gradeDisplay');
+        const gradeDescriptionEl = document.getElementById('gradeDescription');
+        const supplementaryGuidanceEl = document.getElementById('supplementaryGuidance');
+
+        const restartTestBtn = document.getElementById('restartTestBtn');
+        const startTestBtn = document.getElementById('startTestBtn');
+        
+        const currentQuestionNumberEl = document.getElementById('currentQuestionNumber');
+        const totalTestQuestionsEl = document.getElementById('totalTestQuestions');
+        const currentQuestionPointsEl = document.getElementById('currentQuestionPoints');
+        
+        startTestBtn.addEventListener('click', startTest);
+        nextQuestionBtn.addEventListener('click', handleNextQuestion);
+        finishTestBtn.addEventListener('click', showResultsAndScore);
+        restartTestBtn.addEventListener('click', startTest);
+
+        function startTest() {
+            currentQuestionIndex = 0;
+            testQuestions.forEach(q => {
+                q.userAnswer = null;
+                q.score = 0;
+            });
+
+            startScreenEl.style.display = 'none';
+            resultsScreenEl.style.display = 'none';
+            finalGradeAreaEl.style.display = 'none';
+            supplementaryGuidanceEl.style.display = 'none'; 
+            quizAreaEl.style.display = 'block';
+            nextQuestionBtn.style.display = 'inline-block';
+            finishTestBtn.style.display = 'none';
+            totalTestQuestionsEl.textContent = testQuestions.length;
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            const currentQuestion = testQuestions[currentQuestionIndex];
+            questionTextEl.textContent = currentQuestion.question;
+            currentQuestionPointsEl.textContent = currentQuestion.points;
+            answerOptionsEl.innerHTML = '';
+            currentQuestionNumberEl.textContent = currentQuestionIndex + 1;
+
+            for (const key in currentQuestion.options) {
+                const button = document.createElement('button');
+                button.innerHTML = `<span class="font-semibold mr-2">${key})</span> ${currentQuestion.options[key]}`;
+                button.classList.add('answer-btn', 'w-full', 'text-left', 'p-3', 'sm:p-4', 'bg-gray-50', 'border', 'border-gray-300', 'rounded-lg', 'text-gray-700', 'font-medium');
+                button.dataset.answerKey = key;
+                if (currentQuestion.userAnswer === key) {
+                    button.classList.add('selected');
+                }
+                button.addEventListener('click', () => selectMCQAnswer(button, key));
+                answerOptionsEl.appendChild(button);
+            }
+
+            if (currentQuestionIndex === testQuestions.length - 1) {
+                nextQuestionBtn.style.display = 'none';
+                finishTestBtn.style.display = 'inline-block';
+            } else {
+                nextQuestionBtn.style.display = 'inline-block';
+                finishTestBtn.style.display = 'none';
+            }
+        }
+
+        function selectMCQAnswer(button, selectedKey) {
+            testQuestions[currentQuestionIndex].userAnswer = selectedKey;
+            const allButtons = answerOptionsEl.querySelectorAll('.answer-btn');
+            allButtons.forEach(btn => btn.classList.remove('selected'));
+            button.classList.add('selected');
+        }
+
+        function handleNextQuestion() {
+            if (currentQuestionIndex < testQuestions.length - 1) {
+                currentQuestionIndex++;
+                loadQuestion();
+            }
+        }
+
+        function showResultsAndScore() {
+            quizAreaEl.style.display = 'none';
+            resultsScreenEl.style.display = 'block';
+            userAnswersAreaEl.innerHTML = '';
+            
+            let totalScore = 0;
+            const maxScore = testQuestions.reduce((sum, q) => sum + q.points, 0);
+
+            testQuestions.forEach((q, index) => {
+                q.score = 0; 
+                if (q.userAnswer === q.correctAnswer) {
+                    q.score = q.points;
+                }
+                totalScore += q.score;
+
+                const questionDiv = document.createElement('div');
+                questionDiv.classList.add('results-question-item');
+                let pointsText = `(${q.points} поена)`;
+
+                let content = `<p class="font-semibold text-gray-700 mb-1">${index + 1}. ${q.question} <span class="text-sm font-normal text-gray-500">${pointsText}</span></p>`;
+                content += `<p class="text-sm text-gray-600 mb-1">Ваш одговор: <span class="font-medium">${q.userAnswer ? q.userAnswer + ') ' + q.options[q.userAnswer] : 'Нисте одговорили'}</span></p>`;
+                content += `<p class="text-sm text-green-700 mb-1">Тачан одговор: <span class="font-medium">${q.correctAnswer + ') ' + q.options[q.correctAnswer]}</span></p>`;
+                if (q.userAnswer === q.correctAnswer) {
+                    content += `<p class="text-sm font-semibold text-green-700">Тачно (+${q.points} поен${q.points !== 1 ? 'а':' '})</p>`;
+                } else {
+                    content += `<p class="text-sm font-semibold text-red-700">Нетачно (0 поена)</p>`;
+                }
+                content += `<div class="mt-2 space-y-1">`;
+                for (const key in q.options) {
+                     let btnClass = 'answer-btn w-full text-left p-2 bg-gray-50 border border-gray-300 rounded-lg text-xs ';
+                     if (key === q.correctAnswer) btnClass += 'correct-highlight ';
+                     else if (key === q.userAnswer && q.userAnswer !== q.correctAnswer) btnClass += 'incorrect-highlight ';
+                     else if (key === q.userAnswer && q.userAnswer === q.correctAnswer) btnClass += 'correct-highlight ';
+                     content += `<button disabled class="${btnClass}" data-question-id="${q.id}" data-answer-key="${key}"><span class="font-semibold mr-1">${key})</span> ${q.options[key]}</button>`;
+                }
+                content += `</div>`;
+                questionDiv.innerHTML = content;
+                userAnswersAreaEl.appendChild(questionDiv);
+            });
+
+            finalScoreEl.textContent = totalScore;
+            maxPossibleScoreEl.textContent = maxScore; 
+
+            let grade = 0;
+            let gradeName = "";
+            let gradeDescText = "";
+            
+            // Прилагођена скала за максималних 91 поена
+            // Пролаз је 52 поена
+            if (totalScore >= 82) { // 82-91 поена
+                grade = 5;
+                gradeName = "Одлична (5)";
+                gradeDescText = "Полазник показује изузетно разумевање градива, може да га примени у пракси и критички размишља о темама.";
+            } else if (totalScore >= 72) { // 72-81 поена
+                grade = 4;
+                gradeName = "Врло добра (4)";
+                gradeDescText = "Полазник одлично разуме градиво и може да га примени у различитим ситуацијама.";
+            } else if (totalScore >= 62) { // 62-71 поена
+                grade = 3;
+                gradeName = "Добра (3)";
+                gradeDescText = "Полазник добро разуме градиво и може да га примени у једноставним ситуацијама.";
+            } else if (totalScore >= 52) { // 52-61 поена
+                grade = 2;
+                gradeName = "Довољна (2)";
+                gradeDescText = "Полазник показује основно разумевање градива, али има потешкоћа са применом у пракси.";
+            } else { // Испод 52 поена
+                grade = 1;
+                gradeName = "Недовољна (1)";
+                gradeDescText = "Нисте освојили довољан број поена за пролаз (минимум 52 поена).";
+            }
+
+            gradeDisplayEl.textContent = `Оцена: ${gradeName}`;
+            gradeDescriptionEl.textContent = gradeDescText;
+            
+            // Пошто нема специфичних додатних смерница за овај тест, овај део остаје празан или скривен
+            supplementaryGuidanceEl.innerHTML = ''; 
+            supplementaryGuidanceEl.style.display = 'none'; 
+            
+            finalGradeAreaEl.style.display = 'block';
+        }
+        
+        quizAreaEl.style.display = 'none';
+        resultsScreenEl.style.display = 'none';
+    </script>
+
+</body>
+</html>
